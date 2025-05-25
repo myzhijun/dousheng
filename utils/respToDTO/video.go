@@ -1,28 +1,29 @@
 package respToDTO
 
 import (
+	"github.com/RaymondCode/simple-demo/model"
 	"github.com/RaymondCode/simple-demo/model/dto"
-	"github.com/RaymondCode/simple-demo/pb/rpcVideo"
 )
 
-func GetVideoDTo(video *rpcVideo.Video) *dto.VideoDTO {
-	var videoInfo dto.VideoDTO
-	videoInfo.ID = video.Id
-	videoInfo.UserID = video.User.Id
-	videoInfo.User = *GetUserDTo(video.User)
-	videoInfo.PlayUrl = video.PlayUrl
-	videoInfo.CoverUrl = video.CoverUrl
-	videoInfo.FavoriteCount = video.FavoriteCount
-	videoInfo.CommentCount = video.CommentCount
-	videoInfo.IsFavorite = video.IsFavorite
-	videoInfo.Title = video.Title
-	return &videoInfo
+func GetVideoDTO(video *model.Video) *dto.VideoDTO {
+	return &dto.VideoDTO{
+		ID:            video.ID,
+		UserID:        video.User.ID,
+		User:          *GetUserDTO(&video.User),
+		PlayUrl:       video.PlayUrl,
+		CoverUrl:      video.CoverUrl,
+		FavoriteCount: video.FavoriteCount,
+		CommentCount:  video.CommentCount,
+		IsFavorite:    video.IsFavorite,
+		Title:         video.Title,
+	}
 }
 
-func GetVideoListDTo(videos []*rpcVideo.Video) *[]dto.VideoDTO {
+func GetVideoListDTO(videos []model.Video) *[]dto.VideoDTO {
 	videoInfo := make([]dto.VideoDTO, len(videos))
 	for i := 0; i < len(videos); i++ {
-		videoInfo[i] = *GetVideoDTo(videos[i])
+		video := videos[i]
+		videoInfo[i] = *GetVideoDTO(&video)
 	}
 	return &videoInfo
 }

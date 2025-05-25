@@ -1,19 +1,16 @@
 package controller
 
 import (
-	"context"
 	"encoding/json"
 	"github.com/RaymondCode/simple-demo/global"
 	"github.com/RaymondCode/simple-demo/model"
 	"github.com/RaymondCode/simple-demo/model/request"
 	"github.com/RaymondCode/simple-demo/model/response"
-	"github.com/RaymondCode/simple-demo/pb/rpcUser"
+	"github.com/RaymondCode/simple-demo/service"
 	"github.com/RaymondCode/simple-demo/utils"
 	"github.com/RaymondCode/simple-demo/utils/verify"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 	"log"
 	"net/http"
 	"strconv"
@@ -28,31 +25,22 @@ func Register(c *gin.Context) {
 		return
 	}
 
-	// rpc init
-	conn, err := grpc.Dial("localhost:50051", grpc.WithTransportCredentials(insecure.NewCredentials()))
+	// call service directly
+	us := service.UserService{}
+	err, newUser := us.Register(&model.User{Name: r.Username, Username: r.Username, Password: r.Password, FollowCount: 0, FollowerCount: 0})
 	if err != nil {
-		log.Fatalf("did not connect: %v", err)
-	}
-	defer conn.Close()
-	client := rpcUser.NewRPCUserServiceClient(conn)
-
-	// call server
-	resp, err := client.Register(context.Background(), &rpcUser.RegisterRequest{Username: r.Username, Password: r.Password})
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, response.RegisterResponse{Response: response.Response{StatusCode: -1, StatusMsg: "failed: rpc error " + err.Error()}})
+		c.JSON(http.StatusInternalServerError, response.RegisterResponse{Response: response.Response{StatusCode: -1, StatusMsg: err.Error()}})
 		return
 	}
 
-	// return
-	token, _ := utils.GenToken(resp.UserId)
+	token, _ := utils.GenToken(newUser.ID)
 	c.JSON(http.StatusOK, response.RegisterResponse{
 		Response: response.Response{
 			StatusCode: 0,
-			StatusMsg:  "success: create register rpcUser",
+			StatusMsg:  "success: register user",
 		},
-		UserId: resp.UserId,
-		// TODO register token
-		Token: token,
+		UserId: newUser.ID,
+		Token:  token,
 	})
 }
 
@@ -72,29 +60,20 @@ func Login(c *gin.Context) {
 		return
 	}
 
-	// rpc client
-	conn, err := grpc.Dial("localhost:50051", grpc.WithTransportCredentials(insecure.NewCredentials()))
+	us := service.UserService{}
+	returnUser, token, err := us.Login(&model.User{Name: l.Username, Username: l.Username, Password: l.Password})
 	if err != nil {
-		log.Fatalf("did not connect: %v", err)
-	}
-	defer conn.Close()
-	client := rpcUser.NewRPCUserServiceClient(conn)
-
-	// call server
-	resp, err := client.Login(context.Background(), &rpcUser.LoginRequest{Username: l.Username, Password: l.Password})
-	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"rpc server error": err.Error()})
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	// return
 	c.JSON(http.StatusOK, response.LoginResponse{
 		Response: response.Response{
 			StatusCode: 0,
 			StatusMsg:  "success: login in",
 		},
-		UserId: resp.UserId,
-		Token:  resp.Token,
+		UserId: returnUser.ID,
+		Token:  token,
 	})
 
 }
@@ -118,21 +97,15 @@ func UserInfo(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, response.UserInfoResponse{Response: response.Response{StatusCode: 1, StatusMsg: "error: userID error"}})
 	}
 
-	// rpc client
-	conn, err := grpc.Dial("localhost:50051", grpc.WithTransportCredentials(insecure.NewCredentials()))
+	us := service.UserService{}
+	returnUser, err := us.GetUserInfo(userIdNum, userInfoVar.ID)
 	if err != nil {
-		log.Fatalf("did not connect: %v", err)
+		c.JSON(http.StatusInternalServerError, response.UserInfoResponse{Response: response.Response{StatusCode: 1, StatusMsg: err.Error()}})
+		return
 	}
-	defer conn.Close()
-	client := rpcUser.NewRPCUserServiceClient(conn)
 
-	// call server
-	resp, err := client.GetUserInfo(context.Background(), &rpcUser.UserInfoRequest{UserId: userIdNum})
-	returnUser := resp.User
-
-	// DTO
 	userinfo := response.UserInfo{
-		ID:            returnUser.Id,
+		ID:            returnUser.ID,
 		Name:          returnUser.Name,
 		FollowCount:   returnUser.FollowCount,
 		FollowerCount: returnUser.FollowerCount,

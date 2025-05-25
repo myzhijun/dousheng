@@ -1,17 +1,14 @@
 package controller
 
 import (
-	"context"
 	"encoding/json"
 	"github.com/RaymondCode/simple-demo/model"
 	"github.com/RaymondCode/simple-demo/model/request"
 	"github.com/RaymondCode/simple-demo/model/response"
-	"github.com/RaymondCode/simple-demo/pb/rpcFavorite"
+	"github.com/RaymondCode/simple-demo/service"
 	"github.com/RaymondCode/simple-demo/utils/respToDTO"
 	"github.com/RaymondCode/simple-demo/utils/verify"
 	"github.com/gin-gonic/gin"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 	"log"
 	"net/http"
 )
@@ -41,22 +38,13 @@ func FavoriteAction(c *gin.Context) {
 		return
 	}
 
-	// rpc client
-	conn, err := grpc.Dial("localhost:50053", grpc.WithTransportCredentials(insecure.NewCredentials()))
-	if err != nil {
-		log.Fatalf("did not connect: %v", err)
-	}
-	defer conn.Close()
-	client := rpcFavorite.NewRPCFavoriteServiceClient(conn)
-
-	// call server
-	resp, err := client.FavoriteAction(context.Background(), &rpcFavorite.FavoriteRequest{UserId: userInfoVar.ID, Token: favoriteRequest.Token, VideoId: favoriteRequest.VideoID, ActionType: favoriteRequest.ActionType})
+	fs := service.FavoriteService{}
+	err := fs.FavoriteAction(userInfoVar.ID, &favoriteRequest)
 	if err != nil {
 		c.JSON(http.StatusOK, Response{StatusCode: 1, StatusMsg: "error in favorite action service: " + err.Error()})
 		return
 	}
-
-	c.JSON(http.StatusOK, Response{StatusCode: resp.StatusCode})
+	c.JSON(http.StatusOK, Response{StatusCode: 0})
 }
 
 // FavoriteList get from favorite table
@@ -79,21 +67,13 @@ func FavoriteList(c *gin.Context) {
 		return
 	}
 
-	// rpc client
-	conn, err := grpc.Dial("localhost:50053", grpc.WithTransportCredentials(insecure.NewCredentials()))
-	if err != nil {
-		log.Fatalf("did not connect: %v", err)
-	}
-	defer conn.Close()
-	client := rpcFavorite.NewRPCFavoriteServiceClient(conn)
-
-	// call server
-	resp, err := client.FavoriteList(context.Background(), &rpcFavorite.FavoriteListRequest{UserId: favoriteListRequest.UserID, Token: favoriteListRequest.Token})
+	fs := service.FavoriteService{}
+	videos, err := fs.FavoriteList(&favoriteListRequest)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, Response{StatusCode: 1, StatusMsg: "error: favoriteList service" + err.Error()})
 		return
 	}
-	favoriteList := respToDTO.GetVideoListDTo(resp.VideoList)
+	favoriteList := respToDTO.GetVideoListDTO(*videos)
 
 	c.JSON(http.StatusOK, response.FavoriteListResponse{
 		Response: response.Response{

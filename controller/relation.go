@@ -1,19 +1,16 @@
 package controller
 
 import (
-	"context"
 	"encoding/json"
 	"github.com/RaymondCode/simple-demo/global"
 	"github.com/RaymondCode/simple-demo/model"
 	"github.com/RaymondCode/simple-demo/model/request"
 	"github.com/RaymondCode/simple-demo/model/response"
-	"github.com/RaymondCode/simple-demo/pb/rpcFollow"
+	"github.com/RaymondCode/simple-demo/service"
 	"github.com/RaymondCode/simple-demo/utils/respToDTO"
 	"github.com/RaymondCode/simple-demo/utils/verify"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 	"log"
 	"net/http"
 	"strconv"
@@ -51,27 +48,14 @@ func RelationAction(c *gin.Context) {
 		return
 	}
 
-	// rpc client
-	conn, err := grpc.Dial("localhost:50055", grpc.WithTransportCredentials(insecure.NewCredentials()))
+	rs := service.RelationService{}
+	err := rs.RelationAction(userInfoVar.ID, &relationActionRequest)
 	if err != nil {
-		log.Fatalf("did not connect: %v", err)
-	}
-	defer conn.Close()
-	client := rpcFollow.NewRPCFollowServiceClient(conn)
-
-	// call server
-	resp, err := client.FollowAction(context.Background(), &rpcFollow.FollowActionReq{
-		Token:      relationActionRequest.Token,
-		ToUserId:   relationActionRequest.ToUserID,
-		ActionType: relationActionRequest.ActionType,
-		UserId:     userInfoVar.ID,
-	})
-	if err != nil {
-		global.App.DY_LOG.Error("rpc error", zap.Error(err))
+		global.App.DY_LOG.Error("relation action error", zap.Error(err))
 		c.JSON(http.StatusBadRequest, Response{StatusCode: 1, StatusMsg: err.Error()})
 		return
 	}
-	c.JSON(http.StatusOK, Response{StatusCode: resp.StatusCode})
+	c.JSON(http.StatusOK, Response{StatusCode: 0})
 
 }
 
@@ -93,24 +77,13 @@ func FollowList(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, Response{StatusCode: 1, StatusMsg: "bind error"})
 		return
 	}
-	// rpc client
-	conn, err := grpc.Dial("localhost:50055", grpc.WithTransportCredentials(insecure.NewCredentials()))
-	if err != nil {
-		log.Fatalf("did not connect: %v", err)
-	}
-	defer conn.Close()
-	client := rpcFollow.NewRPCFollowServiceClient(conn)
-
-	// call server
-	resp, err := client.GetFollowList(context.Background(), &rpcFollow.FollowListReq{
-		UserId: followListRequest.UserID,
-		Token:  followListRequest.Token,
-	})
+	rs := service.RelationService{}
+	users, err := rs.FollowList(&followListRequest)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, Response{StatusCode: 1, StatusMsg: err.Error()})
 		return
 	}
-	followList := respToDTO.GetUserListDTO(resp.UserList)
+	followList := respToDTO.GetUserListDTO(users)
 	c.JSON(http.StatusOK, response.FollowListResponse{
 		Response: response.Response{
 			StatusCode: 0,
@@ -135,24 +108,13 @@ func FollowerList(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, Response{StatusCode: 1, StatusMsg: "bind error"})
 		return
 	}
-	// rpc client
-	conn, err := grpc.Dial("localhost:50055", grpc.WithTransportCredentials(insecure.NewCredentials()))
-	if err != nil {
-		log.Fatalf("did not connect: %v", err)
-	}
-	defer conn.Close()
-	client := rpcFollow.NewRPCFollowServiceClient(conn)
-
-	// call server
-	resp, err := client.GetFollowerList(context.Background(), &rpcFollow.FollowerListReq{
-		UserId: followerListRequest.UserID,
-		Token:  followerListRequest.Token,
-	})
+	rs := service.RelationService{}
+	users, err := rs.FollowerList(&followerListRequest)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, Response{StatusCode: 1, StatusMsg: err.Error()})
 		return
 	}
-	followerList := respToDTO.GetUserListDTO(resp.UserList)
+	followerList := respToDTO.GetUserListDTO(users)
 	c.JSON(http.StatusOK, response.FollowListResponse{
 		Response: response.Response{
 			StatusCode: 0,
