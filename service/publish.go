@@ -45,10 +45,6 @@ func (ps *PublishService) PublishList(r *request.PublishListRequest) (publishVid
 		return nil, err
 	}
 	// add is_favorite and is_follow value
-	//userIDNum, err := strconv.ParseInt(r.UserID, 10, 64)
-	if err != nil {
-		return nil, errors.New("error: conv userID to int64 ")
-	}
 	VideoListAppendInfo(publishVideos, r.UserID)
 	return
 }

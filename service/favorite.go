@@ -122,9 +122,6 @@ func (fs *FavoriteService) FavoriteList(r *request.FavoriteListRequest) (favorit
 	}
 
 	// add is_favorite and is_follow info to the video list
-	if err != nil {
-		return nil, errors.New("error: strconv userId to 64")
-	}
 	returnFavoriteVideoList, err := VideoListAppendInfo(*favoriteVideoList, userID)
 	if err != nil {
 		return nil, err
