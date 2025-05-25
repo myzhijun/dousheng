@@ -1,16 +1,13 @@
 package controller
 
 import (
-	"context"
 	"encoding/json"
 	"github.com/RaymondCode/simple-demo/model"
 	"github.com/RaymondCode/simple-demo/model/request"
 	"github.com/RaymondCode/simple-demo/model/response"
-	"github.com/RaymondCode/simple-demo/pb/rpcComment"
+	"github.com/RaymondCode/simple-demo/service"
 	"github.com/RaymondCode/simple-demo/utils/verify"
 	"github.com/gin-gonic/gin"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 	"log"
 	"net/http"
 )
@@ -40,32 +37,21 @@ func CommentAction(c *gin.Context) {
 		return
 	}
 
-	// rpc client
-	conn, err := grpc.Dial("localhost:50054", grpc.WithTransportCredentials(insecure.NewCredentials()))
-	if err != nil {
-		log.Fatalf("did not connect: %v", err)
+	cs := service.CommentService{}
+	var comment *model.Comment
+	if commentRequest.ActionType == "1" {
+		comment, err = cs.CommentAction(userInfoVar.ID, &commentRequest)
+	} else if commentRequest.ActionType == "2" {
+		err = cs.DeleteCommentAction(&commentRequest)
 	}
-	defer conn.Close()
-	client := rpcComment.NewRPCCommentServiceClient(conn)
-
-	// call server
-	resp, err := client.Comment(context.Background(), &rpcComment.CommentRequest{
-		Token:       commentRequest.Token,
-		VideoId:     commentRequest.VideoID,
-		ActionType:  commentRequest.ActionType,
-		CommentText: commentRequest.CommentText,
-		CommentId:   commentRequest.CommentID,
-		UserId:      userInfoVar.ID,
-	})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, Response{StatusCode: 1, StatusMsg: "error in commentAction: " + err.Error()})
+		return
 	}
 	c.JSON(http.StatusOK, response.CommentActionResponse{
 		Response: response.Response{StatusCode: 0},
-		Comment:  resp.Comment,
+		Comment:  comment,
 	})
-
-	// call service: action_type = 1 add comment; action_type = 2 delete comment
 
 }
 
@@ -88,28 +74,15 @@ func CommentList(c *gin.Context) {
 		return
 	}
 
-	// rpc client
-	conn, err := grpc.Dial("localhost:50054", grpc.WithTransportCredentials(insecure.NewCredentials()))
-	if err != nil {
-		log.Fatalf("did not connect: %v", err)
-	}
-	defer conn.Close()
-	client := rpcComment.NewRPCCommentServiceClient(conn)
-
-	// call server
-	resp, err := client.GetCommentList(context.Background(), &rpcComment.CommentListReq{
-		Token:   commentListRequest.Token,
-		VideoId: commentListRequest.VideoID,
-		UserId:  userInfoVar.ID,
-	})
+	cs := service.CommentService{}
+	commentList, err := cs.CommentList(userInfoVar.ID, &commentListRequest)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, Response{StatusCode: 1, StatusMsg: "error in commentList: " + err.Error()})
 		return
 	}
 
-	// return
 	c.JSON(http.StatusOK, response.CommentListResponse{
 		Response:    response.Response{StatusCode: 0},
-		CommentList: resp.CommentList,
+		CommentList: commentList,
 	})
 }

@@ -1,20 +1,16 @@
 package controller
 
 import (
-	"context"
 	"encoding/json"
 	"github.com/RaymondCode/simple-demo/global"
 	"github.com/RaymondCode/simple-demo/model"
 	"github.com/RaymondCode/simple-demo/model/request"
 	"github.com/RaymondCode/simple-demo/model/response"
-	"github.com/RaymondCode/simple-demo/pb/rpcVideo"
 	"github.com/RaymondCode/simple-demo/service"
 	"github.com/RaymondCode/simple-demo/utils/respToDTO"
 	"github.com/RaymondCode/simple-demo/utils/verify"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 	"log"
 	"net/http"
 	"path/filepath"
@@ -92,18 +88,13 @@ func PublishList(c *gin.Context) {
 		return
 	}
 
-	// rpc client
-	conn, err := grpc.Dial("localhost:50052", grpc.WithTransportCredentials(insecure.NewCredentials()))
+	ps := service.PublishService{}
+	videos, err := ps.PublishList(&publishListRequest)
 	if err != nil {
-		log.Fatalf("did not connect: %v", err)
+		c.JSON(http.StatusInternalServerError, Response{StatusCode: 1, StatusMsg: err.Error()})
+		return
 	}
-	defer conn.Close()
-	client := rpcVideo.NewRPCVideoServiceClient(conn)
-
-	// call server
-	resp, err := client.GetPublishList(context.Background(), &rpcVideo.PublishListRequest{UserId: publishListRequest.UserID, Token: publishListRequest.Token})
-	publishVideoList := respToDTO.GetVideoListDTo(resp.VideoList)
-	// return
+	publishVideoList := respToDTO.GetVideoListDTO(videos)
 	c.JSON(http.StatusOK, response.PublishListResponse{
 		Response: response.Response{
 			StatusCode: 0,
